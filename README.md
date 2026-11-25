@@ -1,6 +1,7 @@
 # PTC Smart Schedule (server + เว็บ)
 
 ```bash
+cd server
 cp .env.example .env   # ใส่ GEMINI_API_KEY และ DATABASE_URL ของ TiDB
 npm install
 npm run dev            # เปิด http://localhost:3000
