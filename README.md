@@ -11,3 +11,6 @@ npm test               # ทดสอบตัวกรอง SQL
 - `POST /api/ai-chat` `{ question, runId }` – ถาม-ตอบตารางเรียน (Text-to-SQL แบบ SELECT อย่างเดียว)
 - `POST /api/export/excel` / `POST /api/export/pdf` `{ title, subtitle, items[] }`
 - ควรให้ `DATABASE_URL` ใช้ผู้ใช้ที่มีสิทธิ์ SELECT อย่างเดียว เพื่อป้องกันอีกชั้นหนึ่งนอกจากตัวกรอง SQL
+
+## Deploy บน Render
+Render Dashboard → New → Blueprint → เลือก repo นี้ → ใส่ `GEMINI_API_KEY` และ `DATABASE_URL` → Apply
