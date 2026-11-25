@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PTC Smart Schedule</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root { --bg:#f5f7fb; --card:#fff; --ink:#1e293b; --muted:#64748b; --line:#e2e8f0; --brand:#1e40af; --soft:#eef2ff; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family:'Sarabun',sans-serif; background:var(--bg); color:var(--ink); }
+  header { background:var(--brand); color:#fff; padding:14px 20px; }
+  header h1 { margin:0; font-size:1.75rem; }
+  header p { margin:2px 0 0; opacity:.85; font-size:.9rem; }
+  main { max-width:1280px; margin:0 auto; padding:16px; display:grid; gap:16px; grid-template-columns:1fr 360px; }
+  @media (max-width: 960px) { main { grid-template-columns:1fr; } }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:14px; min-width:0; }
+  h2 { margin:0 0 10px; font-size:1.3rem; }
+  label { font-size:.85rem; color:var(--muted); display:block; }
+  input, select, button, textarea { font:inherit; }
+  input, select { width:100%; padding:6px 8px; border:1px solid var(--line); border-radius:6px; }
+  button { padding:7px 14px; border:0; border-radius:6px; background:var(--brand); color:#fff; cursor:pointer; white-space:nowrap; }
+  button.ghost { background:#fff; color:var(--brand); border:1px solid var(--brand); }
+  button:disabled { opacity:.5; cursor:wait; }
+  .row { display:flex; gap:8px; flex-wrap:wrap; align-items:end; }
+  .row > div { flex:1 1 120px; }
+  .scroll { overflow-x:auto; }
+  table.tt { border-collapse:collapse; width:100%; min-width:900px; table-layout:fixed; }
+  .tt th, .tt td { border:1px solid var(--line); text-align:center; padding:4px; font-size:.82rem; height:64px; }
+  .tt th { background:#e2e8f0; height:auto; }
+  .tt td.day { background:#f8fafc; font-weight:700; width:70px; }
+  .tt td.sub { background:var(--soft); position:relative; }
+  .tt td.sub b { display:block; }
+  .tt td.sub .x { position:absolute; top:2px; right:4px; background:none; color:#b91c1c; padding:0; font-size:.9rem; }
+  .msg { padding:8px 10px; border-radius:8px; margin:6px 0; white-space:pre-wrap; font-size:.92rem; }
+  .me { background:var(--soft); margin-left:30px; }
+  .bot { background:#f1f5f9; margin-right:30px; }
+  .sql { font-family:monospace; font-size:.75rem; color:var(--muted); margin-top:4px; }
+  #chatLog { height:420px; overflow-y:auto; border:1px solid var(--line); border-radius:8px; padding:6px; margin:8px 0; }
+  .err { color:#b91c1c; font-size:.85rem; min-height:1.2em; }
+</style>
+</head>
+<body>
+<header>
+  <h1>PTC Smart Schedule</h1>
+  <p>ระบบจัดตารางเรียนตารางสอน วิทยาลัยการอาชีพโพนทอง</p>
+</header>
+
+<main>
+  <section class="card">
+    <h2>ตารางเรียน / ตารางสอน</h2>
+    <div class="row">
+      <div><label>หัวเรื่อง<input id="title" value="ตารางสอน ภาคเรียนที่ 2/2569"></label></div>
+      <div><label>คำอธิบาย<input id="subtitle" value="ครูผู้สอน: นายตัวอย่าง ใจดี แผนกวิชาคอมพิวเตอร์ธุรกิจ"></label></div>
+    </div>
+
+    <form id="addForm" class="row" style="margin-top:10px">
+      <div><label>วัน<select id="fDay"></select></label></div>
+      <div><label>คาบเริ่ม<select id="fStart"></select></label></div>
+      <div><label>จำนวนคาบ<select id="fDur"></select></label></div>
+      <div><label>รหัสวิชา<input id="fCode" required></label></div>
+      <div style="flex-basis:180px"><label>ชื่อวิชา<input id="fName" required></label></div>
+      <div><label>ครู<input id="fTeacher"></label></div>
+      <div><label>กลุ่มเรียน<input id="fGroup"></label></div>
+      <div><label>ห้อง<input id="fRoom"></label></div>
+      <div style="flex:0"><button>เพิ่ม</button></div>
+    </form>
+    <div class="err" id="formErr"></div>
+
+    <div class="scroll"><table class="tt" id="tt"></table></div>
+
+    <div class="row" style="margin-top:12px">
+      <div style="flex:0"><button id="btnXlsx">ดาวน์โหลด Excel</button></div>
+      <div style="flex:0"><button id="btnPdf" class="ghost">ดาวน์โหลด PDF</button></div>
+    </div>
+    <div class="err" id="exportErr"></div>
+  </section>
+
+  <aside class="card">
+    <h2>ผู้ช่วย AI ถาม-ตอบตารางเรียน</h2>
+    <label>Run ID ตารางเรียน<input id="runId" value="latest"></label>
+    <div id="chatLog" aria-live="polite">
+      <div class="msg bot">สวัสดีครับ ถามเรื่องตารางเรียนได้เลย เช่น "วันจันทร์ครูสมชายสอนห้องไหนบ้าง" หรือ "ห้อง 421 ว่างคาบไหนวันพุธ"</div>
+    </div>
+    <form id="chatForm" class="row">
+      <div><input id="q" placeholder="พิมพ์คำถาม..." maxlength="500" required aria-label="คำถาม"></div>
+      <div style="flex:0"><button id="btnAsk">ส่ง</button></div>
+    </form>
+  </aside>
+</main>
+
+<script>
+const DAYS = ['', 'จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์'];
+const TIMES = ['', '08.00-09.00','09.00-10.00','10.00-11.00','11.00-12.00','12.00-13.00','13.00-14.00','14.00-15.00','15.00-16.00','16.00-17.00'];
+const $ = (id) => document.getElementById(id);
+
+let items = [
+  { day:1, startPeriod:1, duration:3, subjectCode:'20204-2001', subjectName:'คอมพิวเตอร์และสารสนเทศเพื่องานอาชีพ', teacherNames:'นายตัวอย่าง ใจดี', groupNames:'ปวช.1/1', roomCode:'421' },
+  { day:2, startPeriod:6, duration:4, subjectCode:'20204-2103', subjectName:'การเขียนโปรแกรมเว็บ', teacherNames:'นายตัวอย่าง ใจดี', groupNames:'ปวช.2/1', roomCode:'423' },
+  { day:4, startPeriod:2, duration:2, subjectCode:'20000-1101', subjectName:'ภาษาไทยพื้นฐาน', teacherNames:'นางสาวตัวอย่าง รักเรียน', groupNames:'ปวช.1/1', roomCode:'211' },
+];
+
+for (let d = 1; d <= 5; d++) $('fDay').add(new Option(DAYS[d], d));
+for (let p = 1; p <= 9; p++) $('fStart').add(new Option(`คาบ ${p}`, p));
+for (let n = 1; n <= 4; n++) $('fDur').add(new Option(`${n} คาบ`, n));
+
+function esc(s) { return String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c])); }
+
+function render() {
+  let html = '<tr><th style="width:70px">วัน / คาบ</th>' +
+    TIMES.slice(1).map((t, i) => `<th>คาบ ${i + 1}<br><small>${t}</small></th>`).join('') + '</tr>';
+  for (let d = 1; d <= 5; d++) {
+    html += `<tr><td class="day">${DAYS[d]}</td>`;
+    for (let p = 1; p <= 9; p++) {
+      const idx = items.findIndex((i) => i.day === d && i.startPeriod === p);
+      if (idx >= 0) {
+        const it = items[idx];
+        html += `<td class="sub" colspan="${it.duration}"><button class="x" data-i="${idx}" aria-label="ลบ ${esc(it.subjectCode)}">✕</button>
+          <b>${esc(it.subjectCode)}</b>${esc(it.subjectName)}<br><small>${esc(it.teacherNames)} · ${esc(it.groupNames)} · ห้อง ${esc(it.roomCode)}</small></td>`;
+        p += it.duration - 1;
+      } else html += '<td></td>';
+    }
+    html += '</tr>';
+  }
+  $('tt').innerHTML = html;
+}
+
+$('tt').addEventListener('click', (e) => {
+  if (e.target.matches('.x')) { items.splice(Number(e.target.dataset.i), 1); render(); }
+});
+
+$('addForm').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const it = {
+    day: +$('fDay').value, startPeriod: +$('fStart').value, duration: +$('fDur').value,
+    subjectCode: $('fCode').value.trim(), subjectName: $('fName').value.trim(),
+    teacherNames: $('fTeacher').value.trim(), groupNames: $('fGroup').value.trim(), roomCode: $('fRoom').value.trim(),
+  };
+  const end = it.startPeriod + it.duration - 1;
+  $('formErr').textContent = '';
+  if (end > 9) return ($('formErr').textContent = 'คาบเกินคาบที่ 9');
+  const clash = items.some((o) => o.day === it.day && o.startPeriod <= end && it.startPeriod <= o.startPeriod + o.duration - 1);
+  if (clash) return ($('formErr').textContent = 'ช่วงคาบนี้มีวิชาอยู่แล้ว');
+  items.push(it); render(); e.target.reset();
+});
+
+async function download(type, btn) {
+  btn.disabled = true; $('exportErr').textContent = '';
+  try {
+    const res = await fetch(`/api/export/${type}`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: $('title').value, subtitle: $('subtitle').value, items }),
+    });
+    if (!res.ok) throw new Error((await res.json()).error || res.statusText);
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(await res.blob());
+    a.download = `ptc-timetable.${type === 'excel' ? 'xlsx' : 'pdf'}`;
+    a.click(); URL.revokeObjectURL(a.href);
+  } catch (err) { $('exportErr').textContent = 'ส่งออกไม่สำเร็จ: ' + err.message; }
+  btn.disabled = false;
+}
+$('btnXlsx').onclick = (e) => download('excel', e.target);
+$('btnPdf').onclick = (e) => download('pdf', e.target);
+
+function addMsg(cls, text, sql) {
+  const div = document.createElement('div');
+  div.className = `msg ${cls}`; div.textContent = text;
+  if (sql) { const s = document.createElement('div'); s.className = 'sql'; s.textContent = 'SQL: ' + sql; div.append(s); }
+  $('chatLog').append(div); $('chatLog').scrollTop = $('chatLog').scrollHeight;
+}
+
+$('chatForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const question = $('q').value.trim(); if (!question) return;
+  addMsg('me', question); $('q').value = ''; $('btnAsk').disabled = true;
+  try {
+    const res = await fetch('/api/ai-chat', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ question, runId: $('runId').value.trim() }),
+    });
+    const data = await res.json();
+    addMsg('bot', data.answer || data.error, data.executedSql);
+  } catch (err) { addMsg('bot', 'เชื่อมต่อเซิร์ฟเวอร์ไม่ได้: ' + err.message); }
+  $('btnAsk').disabled = false;
+});
+
+render();
+</script>
+</body>
+</html>
